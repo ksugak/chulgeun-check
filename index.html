@@ -38,6 +38,29 @@
   button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
   .ghost { padding: 8px 12px; border-radius: 10px; color: var(--sub); font-size: 14px; }
   .ghost:active { background: var(--line); }
+  .head-btns { display: flex; align-items: center; gap: 4px; }
+  .help-btn {
+    width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--sub);
+    color: var(--sub); font-weight: 700; font-size: 16px; line-height: 1; display: grid; place-items: center;
+  }
+  .help-btn:active { background: var(--line); }
+
+  .help {
+    position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none;
+    align-items: flex-end; justify-content: center; z-index: 10;
+  }
+  .help.open { display: flex; }
+  .sheet {
+    background: var(--card); color: var(--ink); width: 100%; max-width: 480px; max-height: 88dvh;
+    overflow-y: auto; border-radius: 20px 20px 0 0;
+    padding: 22px 20px calc(env(safe-area-inset-bottom) + 20px);
+  }
+  @media (min-width: 520px) { .help { align-items: center; } .sheet { border-radius: 20px; } }
+  .sheet h2 { margin: 0 0 14px; font-size: 21px; }
+  .sheet dl { margin: 0; display: grid; gap: 14px; }
+  .sheet dt { font-weight: 700; font-size: 16px; margin-bottom: 3px; }
+  .sheet dd { margin: 0; font-size: 15px; line-height: 1.55; color: var(--sub); }
+  .sheet .solid { width: 100%; padding: 14px; margin-top: 20px; }
 
   .status {
     margin: 18px 0 14px; padding: 16px; border-radius: 16px;
@@ -132,7 +155,10 @@
       <div class="date" id="date"></div>
       <h1>아! 맞다</h1>
     </div>
-    <button class="ghost" id="editBtn">편집</button>
+    <div class="head-btns">
+      <button class="help-btn" id="helpBtn" type="button" aria-label="사용 방법">?</button>
+      <button class="ghost" id="editBtn">편집</button>
+    </div>
   </header>
 
   <section class="status" id="status">
@@ -175,6 +201,43 @@
   <div class="row">
     <button class="dim" id="retake">다시 찍기</button>
     <button id="closeViewer">닫기</button>
+  </div>
+</div>
+
+<div class="help" id="help">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <h2 id="helpTitle">사용 방법</h2>
+    <dl>
+      <div>
+        <dt>✓ 체크하기</dt>
+        <dd>항목을 누르면 체크되고 확인한 시각이 남아요. 다시 누르면 체크가 풀려요.</dd>
+      </div>
+      <div>
+        <dt>📷 사진으로 남기기</dt>
+        <dd>항목 오른쪽 📷를 눌러 사진을 찍으면 사진과 함께 체크돼요. 밖에서 “잠갔나?” 싶을 때 작은 사진을 누르면 크게 볼 수 있어요.</dd>
+      </div>
+      <div>
+        <dt>🌙 매일 새로 시작</dt>
+        <dd>자정이 지나면 체크가 모두 비워져요. 지난 결과는 아래 “최근 7일”에 남아요.</dd>
+      </div>
+      <div>
+        <dt>✏️ 항목 바꾸기</dt>
+        <dd>오른쪽 위 “편집”을 누르면 항목을 추가하거나 삭제할 수 있어요. 끝나면 “완료”를 눌러요.</dd>
+      </div>
+      <div>
+        <dt>📱 홈 화면에 추가</dt>
+        <dd>안드로이드는 크롬 메뉴(⋮) → “홈 화면에 추가”, 아이폰은 사파리 공유 버튼 → “홈 화면에 추가”. 앱처럼 아이콘으로 열리고 인터넷 없이도 돼요.</dd>
+      </div>
+      <div>
+        <dt>🤖 AI 사진 판독 (선택)</dt>
+        <dd>“편집”에서 Anthropic API 키를 넣으면, 찍은 사진을 AI가 보고 완료 상태가 확실할 때만 체크해요. 키가 없어도 나머지 기능은 모두 쓸 수 있어요.</dd>
+      </div>
+      <div>
+        <dt>🔒 내 기록은 내 폰에만</dt>
+        <dd>체크 기록과 사진은 이 기기에만 저장돼요. 다른 사람에게 보이지 않아요.</dd>
+      </div>
+    </dl>
+    <button class="solid" id="closeHelp" type="button">확인</button>
   </div>
 </div>
 
@@ -470,6 +533,12 @@ $('viewer').onclick = e => { if (e.target === $('viewer')) closeViewer(); };
 $('retake').onclick = () => { const id = viewing; closeViewer(); shoot(id); };
 
 $('editBtn').onclick = () => { editing = !editing; render(); };
+
+const closeHelp = () => $('help').classList.remove('open');
+$('helpBtn').onclick = () => { $('help').classList.add('open'); $('help').firstElementChild.scrollTop = 0; };
+$('closeHelp').onclick = closeHelp;
+$('help').onclick = e => { if (e.target === $('help')) closeHelp(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeHelp(); closeViewer(); } });
 $('addForm').onsubmit = e => {
   e.preventDefault();
   const label = $('addInput').value.trim();
