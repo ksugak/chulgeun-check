@@ -1,6 +1,6 @@
 {
-  "name": "출근 전 체크",
-  "short_name": "출근 체크",
+  "name": "아! 맞다",
+  "short_name": "아! 맞다",
   "description": "출근하기 전에 확인할 것들을 체크하는 앱",
   "lang": "ko",
   "start_url": "./",
