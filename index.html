@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f1ea">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="출근 체크">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>출근 전 체크</title>
+<style>
+  :root {
+    --bg: #f4f1ea; --card: #ffffff; --ink: #1f2a24; --sub: #6f7a73;
+    --line: #e4dfd3; --accent: #1f7a4d; --accent-soft: #e3f1e8; --warn: #b4472e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141815; --card: #1e2420; --ink: #eef2ee; --sub: #98a39c;
+      --line: #2c342f; --accent: #5fc48d; --accent-soft: #1d3327; --warn: #e58a72;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    min-height: 100dvh;
+    padding: env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 24px);
+  }
+  main { max-width: 480px; margin: 0 auto; padding: 20px 16px; }
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .date { font-size: 14px; color: var(--sub); }
+  h1 { margin: 2px 0 0; font-size: 26px; letter-spacing: -0.02em; }
+  button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
+  .ghost { padding: 8px 12px; border-radius: 10px; color: var(--sub); font-size: 14px; }
+  .ghost:active { background: var(--line); }
+
+  .status {
+    margin: 18px 0 14px; padding: 16px; border-radius: 16px;
+    background: var(--card); border: 1px solid var(--line);
+  }
+  .status-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .status-msg { font-weight: 700; font-size: 17px; }
+  .status-count { font-variant-numeric: tabular-nums; color: var(--sub); font-size: 14px; }
+  .bar { height: 8px; border-radius: 99px; background: var(--line); margin-top: 12px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .3s ease; }
+  .status.done { background: var(--accent-soft); border-color: transparent; }
+  .status.done .status-msg { color: var(--accent); }
+
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .item {
+    display: flex; align-items: stretch; background: var(--card);
+    border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+    transition: background .2s, border-color .2s;
+  }
+  .item.on { background: var(--accent-soft); border-color: transparent; }
+  .main-btn {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px;
+    padding: 16px 8px 16px 16px; text-align: left; min-height: 72px;
+  }
+  .box {
+    flex: none; width: 30px; height: 30px; border-radius: 50%;
+    border: 2px solid var(--sub); display: grid; place-items: center;
+    color: transparent; font-size: 17px; font-weight: 700; transition: all .2s;
+  }
+  .on .box { background: var(--accent); border-color: var(--accent); color: var(--card); }
+  .txt { min-width: 0; }
+  .label { font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
+  .on .label { color: var(--sub); text-decoration: line-through; text-decoration-thickness: 1px; }
+  .time { font-size: 13px; color: var(--accent); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .side-btn {
+    flex: none; width: 68px; display: grid; place-items: center;
+    border-left: 1px solid var(--line); font-size: 24px;
+  }
+  .on .side-btn { border-left-color: transparent; }
+  .side-btn:active, .main-btn:active { opacity: .6; }
+  .thumb { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; display: block; }
+  .del { color: var(--warn); font-size: 15px; font-weight: 600; }
+
+  .note { font-size: 13px; color: var(--sub); margin-top: 3px; overflow-wrap: anywhere; }
+  .note.warn { color: var(--warn); }
+  .ai { display: none; margin-top: 22px; padding: 16px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); }
+  .editing .ai { display: block; }
+  .ai h2 { font-size: 16px; margin: 0 0 6px; }
+  .ai p { font-size: 13px; color: var(--sub); margin: 0 0 10px; line-height: 1.5; }
+  .ai .add { margin-top: 0; }
+  .ai .ghost { margin-top: 6px; padding-left: 0; color: var(--warn); }
+
+  .add { display: none; gap: 8px; margin-top: 12px; }
+  .editing .add { display: flex; }
+  .add input {
+    flex: 1; min-width: 0; font: inherit; padding: 14px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  }
+  .solid { background: var(--accent); color: var(--card); padding: 0 18px; border-radius: 12px; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .solid { color: #10140f; } }
+
+  .week { margin-top: 26px; }
+  .week h2 { font-size: 14px; color: var(--sub); font-weight: 600; margin: 0 0 10px; }
+  .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .day { text-align: center; font-size: 12px; color: var(--sub); }
+  .dot {
+    width: 34px; height: 34px; margin: 0 auto 4px; border-radius: 50%;
+    border: 2px solid var(--line); display: grid; place-items: center;
+    font-size: 12px; font-variant-numeric: tabular-nums;
+  }
+  .dot.full { background: var(--accent); border-color: var(--accent); color: var(--card); font-weight: 700; font-size: 15px; }
+  .dot.part { border-color: var(--accent); color: var(--ink); }
+  .day.today { color: var(--ink); font-weight: 700; }
+
+  .viewer {
+    position: fixed; inset: 0; background: rgba(0,0,0,.88); display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px; z-index: 10;
+  }
+  .viewer.open { display: flex; }
+  .viewer img { max-width: 100%; max-height: 68dvh; border-radius: 14px; }
+  .viewer p { color: #fff; margin: 0; font-size: 16px; text-align: center; white-space: pre-line; }
+  .viewer .row { display: flex; gap: 10px; }
+  .viewer button { background: #fff; color: #111; padding: 12px 20px; border-radius: 12px; font-weight: 600; }
+  .viewer button.dim { background: rgba(255,255,255,.18); color: #fff; }
+  .hint { margin-top: 14px; font-size: 13px; color: var(--sub); text-align: center; }
+</style>
+</head>
+<body>
+<main id="app">
+  <header>
+    <div>
+      <div class="date" id="date"></div>
+      <h1>출근 전 체크</h1>
+    </div>
+    <button class="ghost" id="editBtn">편집</button>
+  </header>
+
+  <section class="status" id="status">
+    <div class="status-top">
+      <span class="status-msg" id="statusMsg"></span>
+      <span class="status-count" id="statusCount"></span>
+    </div>
+    <div class="bar"><i id="barFill"></i></div>
+  </section>
+
+  <ul id="list"></ul>
+
+  <form class="add" id="addForm">
+    <input id="addInput" placeholder="새 항목 (예: 창문 닫기)" maxlength="30" autocomplete="off">
+    <button class="solid" type="submit">추가</button>
+  </form>
+
+  <section class="ai">
+    <h2>AI 사진 판독</h2>
+    <p id="aiState"></p>
+    <form class="add" id="keyForm">
+      <input id="keyInput" type="password" placeholder="Anthropic API 키 (sk-ant-...)" autocomplete="off">
+      <button class="solid" type="submit">저장</button>
+    </form>
+    <button class="ghost" id="keyClear" type="button">키 삭제</button>
+    <p>키는 이 기기에만 저장되고, 사진을 판독할 때 Anthropic으로만 전송돼요. 판독 한 번마다 소액의 API 요금이 들어요.</p>
+  </section>
+
+  <p class="hint" id="hint"></p>
+
+  <section class="week">
+    <h2>최근 7일</h2>
+    <div class="days" id="days"></div>
+  </section>
+</main>
+
+<div class="viewer" id="viewer">
+  <img id="viewerImg" alt="">
+  <p id="viewerCap"></p>
+  <div class="row">
+    <button class="dim" id="retake">다시 찍기</button>
+    <button id="closeViewer">닫기</button>
+  </div>
+</div>
+
+<input type="file" id="cam" accept="image/*" capture="environment" hidden>
+
+<script>
+const KEY = 'chulgeun-check-v1';
+const DEFAULTS = ['혈압약 먹기', '전기장판 끄기', '가스 밸브 잠그기', '보일러 끄기', '현관문 확인하기'];
+const $ = id => document.getElementById(id);
+
+const dayKey = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const hhmm = t => new Date(t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+let state, editing = false, camTarget = null;
+
+// ---- AI 사진 판독 (Claude API) ----
+const KEY_API = 'chulgeun-check-apikey';
+const notes = {};   // 항목별 판독 진행/실패 메시지 (저장하지 않음): id -> { kind, text, photo }
+let clientPromise = null;
+const hasKey = () => !!localStorage.getItem(KEY_API);
+
+function getClient() {
+  if (!clientPromise) {
+    clientPromise = import('https://esm.sh/@anthropic-ai/sdk@1.7.0').then(m => new m.default({
+      apiKey: localStorage.getItem(KEY_API),
+      dangerouslyAllowBrowser: true,   // 개인용 앱: 키는 사용자 본인 기기에만 있음
+      maxRetries: 1,
+      timeout: 40000,
+    }));
+    clientPromise.catch(() => { clientPromise = null; });
+  }
+  return clientPromise;
+}
+
+const JUDGE_SYSTEM = `당신은 출근 전 안전 체크리스트의 사진을 판독합니다. 사용자가 확인할 항목 이름과 방금 찍은 사진 한 장을 보냅니다.
+사진이 그 항목이 완료된 상태임을 보여주는지 판정하세요.
+- pass: 사진에 해당 대상이 보이고, 완료된 상태(꺼짐, 잠김, 닫힘, 복용함 등)가 분명히 확인됨
+- fail: 해당 대상이 보이지만 완료되지 않은 상태(켜짐, 열림 등)로 보임
+- unclear: 대상이 사진에 없거나, 어둡거나 흐려서 또는 각도 때문에 상태를 판단할 수 없음
+집을 비우는 동안의 안전과 관련된 확인이므로 확실할 때만 pass로 판정하세요.
+reason에는 사진에서 본 근거를 한국어 한 문장(40자 이내)으로 쓰세요.`;
+
+async function judge(label, dataUrl) {
+  const client = await getClient();
+  const res = await client.beta.messages.create({
+    model: 'claude-opus-5-5',
+    max_tokens: 4000,
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    system: JUDGE_SYSTEM,
+    output_config: {
+      effort: 'low',
+      format: {
+        type: 'json_schema',
+        schema: {
+          type: 'object',
+          properties: {
+            verdict: { type: 'string', enum: ['pass', 'fail', 'unclear'] },
+            reason: { type: 'string' },
+          },
+          required: ['verdict', 'reason'],
+          additionalProperties: false,
+        },
+      },
+    },
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: dataUrl.split(',')[1] } },
+        { type: 'text', text: `확인할 항목: ${label}` },
+      ],
+    }],
+  });
+  if (res.stop_reason === 'refusal') return { verdict: 'unclear', reason: 'AI가 이 사진은 판독하지 못했어요.' };
+  const block = res.content.find(b => b.type === 'text');
+  const out = JSON.parse(block.text);
+  if (!['pass', 'fail', 'unclear'].includes(out.verdict)) throw new Error('bad verdict');
+  return out;
+}
+
+function setPhotoCheck(id, photo, extra) {
+  state.checks[id] = { t: Date.now(), photo, ...extra };
+  if (!save()) {           // 저장 공간이 부족하면 사진 없이 체크만 남긴다
+    state.checks[id].photo = null; save();
+    alert('저장 공간이 부족해 사진 없이 체크만 했어요.');
+  }
+}
+
+async function handlePhoto(id, thumb, full) {
+  if (!hasKey()) { setPhotoCheck(id, thumb); render(); return; }
+  const it = state.items.find(x => x.id === id);
+  const day = state.day;
+  notes[id] = { kind: 'busy', text: 'AI가 사진을 확인하는 중…', photo: thumb };
+  delete state.checks[id];
+  render();
+  let out, failed = false;
+  try { out = await judge(it.label, full); } catch (e) { console.error(e); failed = true; }
+  // 기다리는 동안 날짜가 바뀌었거나, 항목이 지워졌거나, 직접 체크했으면 결과를 버린다
+  if (state.day !== day || !notes[id] || notes[id].photo !== thumb || !state.items.some(x => x.id === id)) return;
+  if (failed) {
+    delete notes[id];
+    setPhotoCheck(id, thumb, { ai: 'error' });
+  } else if (out.verdict === 'pass') {
+    delete notes[id];
+    setPhotoCheck(id, thumb, { ai: 'pass', reason: out.reason });
+    if (navigator.vibrate) navigator.vibrate(15);
+  } else {
+    notes[id] = { kind: out.verdict, text: out.reason, photo: thumb };
+    if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+  }
+  render();
+}
+
+function load() {
+  try { state = JSON.parse(localStorage.getItem(KEY)); } catch (e) { state = null; }
+  if (!state || !Array.isArray(state.items)) {
+    state = {
+      items: DEFAULTS.map((label, i) => ({ id: 'd' + i, label })),
+      day: dayKey(), checks: {}, history: {}
+    };
+  }
+  rollover();
+}
+
+function doneCount() { return state.items.filter(it => state.checks[it.id]).length; }
+
+// 날짜가 바뀌면 어제 결과를 기록에 남기고 체크를 비운다.
+function rollover() {
+  const today = dayKey();
+  if (state.day === today) return;
+  state.history[state.day] = { done: doneCount(), total: state.items.length };
+  const keep = Object.keys(state.history).sort().slice(-30);
+  state.history = Object.fromEntries(keep.map(k => [k, state.history[k]]));
+  state.day = today;
+  state.checks = {};
+  for (const k in notes) delete notes[k];
+  save();
+}
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); return true; }
+  catch (e) { return false; }
+}
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+
+function render() {
+  const now = new Date();
+  $('date').textContent = now.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' });
+  $('app').classList.toggle('editing', editing);
+  $('editBtn').textContent = editing ? '완료' : '편집';
+  $('hint').hidden = editing;
+  $('hint').textContent = hasKey()
+    ? '항목을 누르면 체크, 📷로 찍으면 AI가 사진을 보고 체크해요.'
+    : '항목을 누르면 체크, 📷를 누르면 사진으로 남기고 체크돼요.';
+  $('aiState').textContent = hasKey()
+    ? '켜져 있어요. 사진을 찍으면 AI가 완료 상태인지 확인하고, 확실할 때만 체크해요.'
+    : '꺼져 있어요. API 키를 넣으면 사진을 찍었을 때 AI가 완료 상태인지 확인해요.';
+  $('keyClear').hidden = !hasKey();
+
+  const total = state.items.length, done = doneCount();
+  const allDone = total > 0 && done === total;
+  $('status').classList.toggle('done', allDone);
+  $('statusMsg').textContent = total === 0 ? '항목을 추가해 주세요'
+    : allDone ? '모두 확인했어요. 안심하고 출근하세요!'
+    : done === 0 ? '나가기 전에 확인해요'
+    : `${total - done}개 남았어요`;
+  $('statusCount').textContent = total ? `${done} / ${total}` : '';
+  $('barFill').style.width = total ? (done / total * 100) + '%' : '0';
+
+  const list = $('list');
+  list.replaceChildren();
+  for (const it of state.items) {
+    const c = state.checks[it.id];
+    const li = el('li', 'item' + (c ? ' on' : ''));
+
+    const main = el('button', 'main-btn');
+    main.type = 'button';
+    main.setAttribute('aria-pressed', c ? 'true' : 'false');
+    main.append(el('span', 'box', '✓'));
+    const txt = el('span', 'txt');
+    txt.append(el('div', 'label', it.label));
+    const n = c ? null : notes[it.id];
+    if (c) txt.append(el('div', 'time', hhmm(c.t) + (
+      c.ai === 'pass' ? ' · AI 확인'
+      : c.ai === 'error' ? ' · 사진 저장 (AI 판독 실패)'
+      : c.manual ? ' · 직접 확인'
+      : c.photo ? ' · 사진 확인' : ' 확인')));
+    else if (n && n.kind === 'busy') txt.append(el('div', 'note', n.text));
+    else if (n) txt.append(el('div', 'note warn',
+      (n.kind === 'fail' ? 'AI: ' : 'AI가 확인 못함: ') + n.text + ' — 다시 찍거나 눌러서 직접 체크'));
+    main.append(txt);
+    main.onclick = () => toggle(it.id);
+    li.append(main);
+
+    const side = el('button', 'side-btn');
+    side.type = 'button';
+    if (editing) {
+      side.classList.add('del');
+      side.textContent = '삭제';
+      side.onclick = () => removeItem(it.id);
+    } else if (c && c.photo) {
+      const img = el('img', 'thumb');
+      img.src = c.photo; img.alt = it.label + ' 사진 보기';
+      side.append(img);
+      side.onclick = () => openViewer(it);
+    } else if (n && n.kind === 'busy') {
+      side.textContent = '⏳';
+      side.disabled = true;
+    } else {
+      side.textContent = '📷';
+      side.setAttribute('aria-label', it.label + ' 사진 찍기');
+      side.onclick = () => shoot(it.id);
+    }
+    li.append(side);
+    list.append(li);
+  }
+  renderWeek(done, total);
+}
+
+function renderWeek(done, total) {
+  const box = $('days');
+  box.replaceChildren();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const k = dayKey(d);
+    const rec = i === 0 ? { done, total } : state.history[k];
+    const wrap = el('div', 'day' + (i === 0 ? ' today' : ''));
+    const dot = el('div', 'dot');
+    if (rec && rec.total > 0 && rec.done === rec.total) { dot.classList.add('full'); dot.textContent = '✓'; }
+    else if (rec && rec.done > 0) { dot.classList.add('part'); dot.textContent = `${rec.done}/${rec.total}`; }
+    wrap.append(dot, document.createTextNode(i === 0 ? '오늘' : d.toLocaleDateString('ko-KR', { weekday: 'short' })));
+    box.append(wrap);
+  }
+}
+
+function toggle(id) {
+  if (editing) return;
+  if (state.checks[id]) delete state.checks[id];
+  else {
+    // AI가 통과시키지 않은 사진이 있으면 그 사진을 남긴 채 직접 체크한다
+    const n = notes[id];
+    delete notes[id];
+    if (n && n.kind !== 'busy') setPhotoCheck(id, n.photo, { manual: true });
+    else state.checks[id] = { t: Date.now(), photo: null };
+    if (navigator.vibrate) navigator.vibrate(15);
+  }
+  save(); render();
+}
+
+function shoot(id) { camTarget = id; $('cam').value = ''; $('cam').click(); }
+
+$('cam').onchange = e => {
+  const file = e.target.files[0];
+  if (!file || !camTarget) return;
+  const id = camTarget; camTarget = null;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    const shrink = (max, q) => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * s); cv.height = Math.round(img.height * s);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      return cv.toDataURL('image/jpeg', q);
+    };
+    // 저장용은 작게, AI 판독용은 세부가 보이도록 크게
+    const thumb = shrink(640, 0.6), full = hasKey() ? shrink(1280, 0.8) : null;
+    URL.revokeObjectURL(url);
+    handlePhoto(id, thumb, full);
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); alert('사진을 불러오지 못했어요. 다시 시도해 주세요.'); };
+  img.src = url;
+};
+
+let viewing = null;
+function openViewer(it) {
+  const c = state.checks[it.id]; if (!c) return;
+  viewing = it.id;
+  $('viewerImg').src = c.photo;
+  $('viewerCap').textContent = `${it.label} · ${hhmm(c.t)}` + (c.reason ? `\nAI: ${c.reason}` : '');
+  $('viewer').classList.add('open');
+}
+function closeViewer() { $('viewer').classList.remove('open'); viewing = null; }
+$('closeViewer').onclick = closeViewer;
+$('viewer').onclick = e => { if (e.target === $('viewer')) closeViewer(); };
+$('retake').onclick = () => { const id = viewing; closeViewer(); shoot(id); };
+
+$('editBtn').onclick = () => { editing = !editing; render(); };
+$('addForm').onsubmit = e => {
+  e.preventDefault();
+  const label = $('addInput').value.trim();
+  if (!label) return;
+  state.items.push({ id: 'u' + Date.now(), label });
+  $('addInput').value = '';
+  save(); render();
+};
+$('keyForm').onsubmit = e => {
+  e.preventDefault();
+  const k = $('keyInput').value.trim();
+  if (!k) return;
+  localStorage.setItem(KEY_API, k);
+  clientPromise = null;
+  $('keyInput').value = '';
+  render();
+};
+$('keyClear').onclick = () => {
+  if (!confirm('저장된 API 키를 삭제할까요?')) return;
+  localStorage.removeItem(KEY_API);
+  clientPromise = null;
+  render();
+};
+function removeItem(id) {
+  const it = state.items.find(x => x.id === id);
+  if (!confirm(`'${it.label}' 항목을 삭제할까요?`)) return;
+  state.items = state.items.filter(x => x.id !== id);
+  delete state.checks[id];
+  delete notes[id];
+  save(); render();
+}
+
+// 앱을 켜 둔 채 날짜가 넘어가도 새 하루로 시작
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { rollover(); render(); } });
+
+// 홈 화면에 설치한 앱이 오프라인에서도 열리도록 (https 또는 localhost에서만 동작)
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('sw.js').catch(console.error);
+}
+
+load(); render();
+</script>
+</body>
+</html>
